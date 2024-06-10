@@ -1,0 +1,1094 @@
+#ifndef BANKACCOUNT_H
+#define BANKACCOUNT_H
+#include <QString>
+
+template <class T>
+class bankAccount
+{
+public:
+    QString type ;
+    QString cardNumber , shaba ,accountNum , cvv2 ;
+    T inventory;
+    QString Date ;
+    QString pass4Dgt , passWordSt , activePass ;
+    bankAccount* pre ;
+    bankAccount* n ;
+    void loadData(const QStringList& data)
+    {
+        if(data.size() >= 9)
+        {
+            type = data.at(0);
+            cardNumber = data.at(1) ;
+            shaba = data.at(2) ;
+            accountNum = data.at(3) ;
+            cvv2 = data.at(4) ;
+            inventory = data.at(5).toInt() ;
+            Date = data.at(6) ;
+            pass4Dgt = data.at(7) ;
+            passWordSt = data.at(8) ;
+
+        }
+    }
+
+    QString DataSentence() const
+    {
+        return type+" " + cardNumber
+                + " " + shaba + " " + accountNum + " " +
+                cvv2 + " " + QString::number(inventory) + " " + Date + " " +
+                pass4Dgt + " " + passWordSt ;
+    }
+};
+#endif // BANKACCOUNT_H
+////////////////////////////////////////////////////////////////////////////////#ifndef CARDTOCARD_H
+#define CARDTOCARD_H
+
+#include <QDialog>
+#include "userfile.h"
+
+namespace Ui {
+class cardTocard;
+}
+
+class cardTocard : public QDialog
+{
+    Q_OBJECT
+
+public:
+    int index_for_account ;
+    explicit cardTocard(QWidget *parent = 0);
+    ~cardTocard();
+    void getUsers(QList<user<unsigned long long>> *) ;
+
+    bool searchBankAccountForMe(QString cardNum) ;
+
+    bool searchBankAcForOthers(QString cardNum) ;
+
+    void getUser(user<unsigned long long> User) ;
+
+    bool enoughMoney ;
+
+
+private slots:
+    void updateMyAccount();
+
+    void makeAmountInt() ;
+
+    void updateAnotherAccount() ;
+
+    void on_pushButton_clicked();
+
+    void on_pushButton_check_info_clicked();
+
+    void on_pushB_get_password_clicked();
+
+private:
+    Ui::cardTocard *ui;
+    QList<user<unsigned long long>> * users ;
+    user<unsigned long long> User ;
+    unsigned long long int amount ;
+    QString cardNum1 ;
+    QString cardNum2 ;
+};
+
+#endif // CARDTOCARD_H
+///////////////////////////////////////////////////////////////
+#ifndef DIALOGSEC_H
+#define DIALOGSEC_H
+
+#include <QDialog>
+#include "userfile.h"
+#include "makenewaccount.h"
+#include "managecard.h"
+#include "cardtocard.h"
+
+namespace Ui {
+class DialogSec;
+}
+
+class DialogSec : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit DialogSec(QWidget *parent = 0);
+    ~DialogSec();
+    void getUsername(const QString& username) ;
+    void setUsers(QList<user<unsigned long long>>* userList) ;
+signals:
+    void userUpdated() ;
+private slots:
+
+    void on_pushBMakeNew_clicked();
+
+    void onUserUpdated() ;
+
+//    void on_pushBGoTo_clicked();
+
+    void on_pushBGoTo_clicked();
+
+private:
+    Ui::DialogSec *ui;
+    makeNewAccount* makenewaccount ;
+    manageCard* managecard ;
+
+    QString username ;
+    QList<user<unsigned long long>>* users ;
+
+};
+
+#endif // DIALOGSEC_H
+////////////////////////////////////////////////////////
+#ifndef FILEFUNCIONS_H
+#define FILEFUNCIONS_H
+
+#include <QFile>
+#include <QTextStream>
+#include <QStringList>
+#include <QList>
+#include <QString>
+#include <QDebug>
+#include <QTemporaryFile>
+#include "userfile.h"
+#include "bankaccount.h"
+class file_functions{
+public:
+    static void readUsersFromFile(const QString& filePath ,QList<user<unsigned long long>>& users)
+    {
+        QFile file(filePath) ;
+        if(!file.open(QFile::ReadOnly | QFile::Text))
+        {
+            qWarning() << "file couldn't be open" << file.errorString() ;
+            return ;
+        }
+        QTextStream in(&file) ;
+        while(!in.atEnd())
+        {
+            QString line = in.readLine();
+            QStringList data = line.split(' ');
+
+            user<unsigned long long> tmpUser ;
+            tmpUser.loadData(data) ;
+            users.append(tmpUser);
+        }
+        file.close();
+    }
+
+    static void readAccountsFromFile(const QString& filepath , QList<user<unsigned long long>>& users)
+    {
+        QFile file(filepath) ;
+
+        if(!file.open(QFile::ReadOnly | QFile::Text))
+        {
+            qWarning() << "file couldn't be open" << file.errorString() ;
+            return ;
+        }
+        QTextStream in(&file) ;
+        while(!in.atEnd())
+        {
+            QString line = in.readLine() ;
+            QStringList data = line.split(' ') ;
+            bankAccount<unsigned long long> account ;
+            if(data.size() >= 10)
+            {
+                QString userName = data.at(0) ;
+                bankAccount<unsigned long long> account ;
+                account.loadData(data.mid(1));
+
+                for(user<unsigned long long>& User : users)
+                {
+                    if(User.userName == userName)
+                        User.bankAccounts.append(account);
+                }
+            }
+        }
+        file.close();
+    }
+
+    static void writeUserToFile(const QString&filePath , user<unsigned long long> users)
+    {
+        QFile file(filePath);
+
+        if (!file.open(QFile::Append | QFile::Text)) {
+            qWarning() << "Cannot open file for writing:" << file.errorString();
+            return;
+        }
+        QTextStream out(&file) ;
+
+            out << users.name << " " << users.lastName << " "
+                << users.userName << " "
+                << users.ID << " " << users.password << "\n" ;
+
+        file.close();
+    }
+
+    static void writeAccountToFile(const QString &filePath, bankAccount<unsigned long long> account,QString username)
+    {
+        QFile file(filePath) ;
+        if(!file.open(QFile::Append | QFile::Text))
+        {
+            qWarning() << "Couldn't open file" <<file.errorString() ;
+            return ;
+        }
+        QTextStream out(&file) ;
+
+
+            out << username << " " << account.DataSentence() <<"\n" ;
+
+    }
+    static void updateAccountFile(const QString& filePath,QString cardNumber,QList<user<unsigned long long>> users)
+    {
+        QString updated_line ;
+        bool userFound = false ;
+        for(user<unsigned long long> User : users)
+        {
+            for(bankAccount<unsigned long long> BankAccount : User.bankAccounts)
+            {
+                if(BankAccount.cardNumber == cardNumber)
+                {
+                    updated_line = User.userName + " " + BankAccount.DataSentence();
+                    userFound = true ;
+                    break ;
+                }
+            }
+            if(userFound)
+                break ;
+        }
+            // Generate the new data for the given card number
+
+
+            // Open the original file for reading
+            QFile originalFile(filePath);
+            if (!originalFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                qWarning() << "Failed to open original file for reading:" << originalFile.errorString();
+                return;
+            }
+
+            // Create a temporary file in the same directory as the original file
+            QString tempFilePath = filePath + ".tmp";
+            QFile tempFile(tempFilePath);
+            if (!tempFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                qWarning() << "Failed to create temporary file:" << tempFile.errorString();
+                originalFile.close();
+                return;
+            }
+
+            // Open the temporary file for writing
+            QTextStream out(&tempFile);
+
+            // Read from the original file, make modifications, and write to the temporary file
+            QTextStream in(&originalFile);
+            while (!in.atEnd()) {
+                QString line = in.readLine();
+                QStringList data = line.split(' ');
+
+                // Check if this line corresponds to the card number we want to update
+                if (data.size() > 1 && data[2] == cardNumber) {
+                    // Write the updated data to the temporary file
+                    out << updated_line << '\n';
+                } else {
+                    // Write the original line to the temporary file
+                    out << line << '\n';
+                }
+            }
+
+            // Close both files
+            originalFile.close();
+            tempFile.close();
+
+            // Remove the original file and replace it with the temporary file
+            if (!QFile::remove(filePath)) {
+                qWarning() << "Failed to remove original file:" << filePath;
+            } else {
+                if (!QFile::rename(tempFilePath, filePath)) {
+                    qWarning() << "Failed to rename temporary file to original file:" << tempFilePath;
+                } else {
+                    qDebug() << "File updated successfully.";
+                }
+            }
+        }
+//void updateFile(const QString& filePath, QString cardNumber,QList<user<unsigned long long>> users)
+//{
+
+
+};
+#endif // FILEFUNCIONS_H#ifndef FILEFUNCTIONS_H
+
+///////////////////////////////////////////////////////////
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <iostream>
+#include <QList>
+#include "dialogsec.h"
+#include "signinpage.h"
+#include "userfile.h"
+
+
+using namespace std ;
+namespace Ui {
+class MainWindow;
+}
+
+
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    explicit MainWindow(QWidget *parent = 0);
+    ~MainWindow();
+
+private slots:
+    void on_pushButton_clicked();
+
+    void on_pushButton_2_clicked();
+public slots:
+    void updateUserList(user<unsigned long long> User) ;
+
+private:
+    Ui::MainWindow *ui;
+    DialogSec* dialogSec ;
+    signinPage* signInPage ;
+    QList<user<unsigned long long>> users ;
+
+    void readUsers() ;
+    void readAccounts() ;
+    bool validUserPass(const QString &userName,const QString &password) ;
+    void goToMainPage() ;
+    void goToSignInPage() ;
+};
+#endif // MAINWINDOW_H
+///////////////////////////////////////////////////////////
+#ifndef MAKENEWACCOUNT_H
+#define MAKENEWACCOUNT_H
+
+#include <QDialog>
+#include "userfile.h"
+
+namespace Ui {
+class makeNewAccount;
+}
+
+class makeNewAccount : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit makeNewAccount(QWidget *parent = 0);
+    ~makeNewAccount();
+
+    void setUsers(QList<user<unsigned long long>>* userList) ;
+
+    void getUser(user<unsigned long long>* userCpy) ;
+
+    void make_Card_Num(bankAccount<unsigned long long> &newAccount) ;
+
+    void make_Shaba(bankAccount<unsigned long long> &newAccount)  ;
+
+    void make_account_num(bankAccount<unsigned long long>& newAccount) ;
+
+    void make_cvv2(bankAccount<unsigned long long>& newAccount) ;
+
+    void make_Date(bankAccount<unsigned long long>& newAccount) ;
+
+    void make_4DgtPass(bankAccount<unsigned long long>& newAccount) ;
+
+    void make_password(bankAccount<unsigned long long>& newAccount) ;
+
+    int cnt = 0;
+signals:
+    void userUpadted() ;
+
+private slots:
+
+    void on_radioButton_saving_pressed();
+
+    void on_radioButton_current_pressed();
+
+    void on_radioButton_loan_pressed();
+
+private:
+    Ui::makeNewAccount *ui;
+    QList<user<unsigned long long>>* users ;
+    user<unsigned long long> *User ;
+
+};
+
+#endif // MAKENEWACCOUNT_H
+////////////////////////////////////////
+#ifndef MANAGECARD_H
+#define MANAGECARD_H
+
+#include <QDialog>
+#include "userfile.h"
+#include "cardtocard.h"
+namespace Ui {
+class manageCard;
+}
+
+class manageCard : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit manageCard(QWidget *parent = 0);
+    ~manageCard();
+    void getUsers(QList<user<unsigned long long>>* userList) ;
+    void getUser(user<unsigned long long> User) ;
+private slots:
+    void on_pushB_Card_to_Card_clicked();
+private:
+    Ui::manageCard *ui;
+    cardTocard* cardtocard ;
+    QList<user<unsigned long long>>* users ;
+    user<unsigned long long> User ;
+};
+
+#endif // MANAGECARD_H
+///////////////////////////////////////////////
+#ifndef SIGNINPAGE_H
+#define SIGNINPAGE_H
+
+#include <QDialog>
+#include <QString>
+#include "user.h"
+
+namespace Ui {
+class signinPage;
+}
+
+class signinPage : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit signinPage(QWidget *parent = 0);
+    ~signinPage();
+    void setUsers(QList<user<unsigned long long>>* userList) ;
+    void goToLoginPage() ;
+
+signals:
+//    void signInCompleted(QList<user<unsigned long long>>&userList) ;
+    void userAdded(user<unsigned long long> User) ;
+private slots:
+
+    void on_pushButton_clicked();
+
+
+private:
+    Ui::signinPage *ui;
+    QList<user<unsigned long long>>* users ;
+};
+
+#endif // SIGNINPAGE_H
+//////////////////////////////////////////////////
+#ifndef USER_H
+#define USER_H
+#include "bankaccount.h"
+#include <QString>
+#include <QList>
+template <class T>
+class user
+{
+public:
+    QString userName,password,name, lastName  ;
+    QString ID ;
+
+    QList<bankAccount<unsigned long long>> bankAccounts ;
+    user* head ;
+    user* tail ;
+
+public:
+    user()
+    {
+        head = nullptr ;
+        tail = nullptr ;
+    }
+    void pushBack(bankAccount<T> newAccount)
+    {
+        bankAccount<T>* tmp = new  bankAccount<T>;
+        tmp->setCardNumber(newAccount.getCardNum());
+        tmp->setShaba(newAccount.getShaba());
+        tmp->setType(newAccount.getType());
+        if(head == nullptr)
+        {
+            head = tmp ;
+            tail = head ;
+            tmp->n = nullptr ;
+            tmp->pre = nullptr ;
+            return ;
+        }
+        tmp->pre = tail ;
+        tail = tmp ;
+        tmp->n = nullptr ;
+    }
+    void loadData(const QStringList& data)
+    {
+        if(data.size() >= 5)
+        {
+            name = data.at(0) ;
+            lastName = data.at(1) ;
+            userName = data.at(2) ;
+            ID = data.at(3) ;
+            password = data.at(4) ;
+        }
+    }
+};
+
+#endif // USER_H
+//////////////////////////////////////////////
+#include "cardtocard.h"
+#include "ui_cardtocard.h"
+#include "userfile.h"
+#include "bankaccount.h"
+#include "file_functions.h"
+#include <QMessageBox>
+#include <QDebug>
+
+cardTocard::cardTocard(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::cardTocard)
+{
+    ui->setupUi(this);
+}
+
+cardTocard::~cardTocard()
+{
+    delete ui;
+}
+void cardTocard::getUsers(QList<user<unsigned long long> > *userList)
+{
+    users = userList ;
+}
+void cardTocard::getUser(user<unsigned long long> UserInlogin)
+{
+    User = UserInlogin ;
+}
+bool cardTocard::searchBankAccountForMe(QString cardNum)
+{
+    for(const bankAccount<unsigned long long>& BankAccounts : User.bankAccounts)
+    {
+        if(BankAccounts.cardNumber == cardNum )
+        {
+            return true ;
+        }
+    }
+    QMessageBox warning ;
+    warning.warning(this, "invalid card number","the card number you enterd is not valid please try again") ;
+    return false ;
+}
+bool cardTocard::searchBankAcForOthers(QString cardNum)
+{
+    for(const user<unsigned long long>& User : *users)
+    {
+        for(int i = 0 ; i < User.bankAccounts.size() ; i ++)
+        {
+            if(User.bankAccounts[i].cardNumber == cardNum)
+            {
+                QMessageBox::information(this , "identify valid card number","you are transfering money to user with username :" ,User.userName) ;
+                return true ;
+            }
+        }
+    }
+    QMessageBox::warning(this, "invalid card number","the card number you enterd is not valid please try again") ;
+    return false ;
+}
+void cardTocard::updateMyAccount()
+{
+
+    bool userFound = false ;
+    int index_for_user_to_send_money ;
+
+    for(int j = 0 ; j < users->size() ; j ++)
+    {
+
+
+//        index_for_account = 0 ;
+        user<unsigned long long>& Users = (*users)[j] ;
+        for(int i = 0 ; i < Users.bankAccounts.size() ; i ++)
+        {
+            if( Users.bankAccounts[i].cardNumber == cardNum1 )
+            {
+                userFound = true ;
+
+                index_for_user_to_send_money = j;
+                index_for_account = i ;
+
+                if(Users.bankAccounts[i].inventory - 10 >= amount )
+                {
+                    enoughMoney = true ;
+                    Users.bankAccounts[i].inventory -= amount ;
+                    break ;
+                }
+                else
+                {
+                    enoughMoney = false ;
+                    QMessageBox::warning(this,"inventory not sufficient","the inventory is less that the amount ...") ;
+                    return;
+                }
+
+            }
+        }
+        if(userFound)
+            break ;
+    }
+//    qDebug() << users->at(index_for_user_to_send_money- 1).bankAccounts.at(index_for_account).inventory ;
+    file_functions::updateAccountFile("accounts.txt",users->at(index_for_user_to_send_money).bankAccounts.at(index_for_account).cardNumber,*users) ;
+}
+void cardTocard::makeAmountInt()
+{
+    QString amountStr = ui->lineEdit_amount->text() ;
+    amount = amountStr.toInt() ;
+}
+void cardTocard::updateAnotherAccount()
+{
+    int index_for_account_receiver;
+    bool userFound = false ;
+
+    int index_for_user_to_receive_money ;
+    for(int j = 0 ; j < users->size() ; j ++)
+    {
+        user<unsigned long long> &user_to_receive_money = (*users)[j] ;
+        for(int i = 0 ;i < user_to_receive_money.bankAccounts.size() ; i ++)
+        {
+
+            index_for_account_receiver ++ ;
+            if( user_to_receive_money.bankAccounts[i].cardNumber == cardNum2 )
+            {
+                 index_for_user_to_receive_money = j ;
+                 userFound = true ;
+                 user_to_receive_money.bankAccounts[i].inventory += amount ;
+                 break;
+            }
+        }
+        if(userFound)
+            break ;
+    }
+    file_functions::updateAccountFile("accounts.txt",cardNum2,*users) ;
+}
+void cardTocard::on_pushButton_clicked()
+{
+    cardNum1 = ui->lineEdit_card_number->text();
+    cardNum2 = ui->lineEdit->text() ;
+
+    makeAmountInt();
+    updateMyAccount();
+    if(enoughMoney)
+        updateAnotherAccount();
+}
+void cardTocard::on_pushButton_check_info_clicked()
+{
+    cardNum1 = ui->lineEdit_card_number->text();
+    searchBankAccountForMe(cardNum1) ;
+    cardNum2 = ui->lineEdit->text() ;
+    searchBankAcForOthers(cardNum2) ;
+}
+void cardTocard::on_pushB_get_password_clicked()
+{
+    for(int dgt = 0 ; dgt < 4 ; dgt ++)
+    {
+        int digit = rand() % 10 ;
+    }
+}
+///////////////////////////////////////////////////
+#include "dialogsec.h"
+#include "ui_dialogsec.h"
+#include "userfile.h"
+#include "makenewaccount.h"
+
+#include <QMessageBox>
+
+DialogSec::DialogSec(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::DialogSec)
+{
+    ui->setupUi(this);
+
+}
+
+DialogSec::~DialogSec()
+{
+    delete ui;
+}
+void DialogSec::getUsername(const QString& userName)
+{
+    username = userName;
+}
+
+void DialogSec::on_pushBMakeNew_clicked()
+{
+    int cnt = 0 ;
+    for(user<unsigned long long>& User : *users)
+    {
+
+        if(User.userName == username)
+        {
+            hide() ;
+            if(User.bankAccounts.size() < 5)
+            {
+
+                makenewaccount = new makeNewAccount(this) ;
+                makenewaccount->setUsers(users) ;
+                makenewaccount->getUser(&User) ;
+                connect(makenewaccount,&makeNewAccount::userUpadted,this,&DialogSec::onUserUpdated) ;
+                makenewaccount->show() ;
+            }
+            else
+            {
+                QMessageBox error ;
+                error.warning(this,"account number limit","the number of your accounts is top to the limit") ;
+            }
+            break ;
+        }
+    }
+}
+void DialogSec::setUsers(QList<user<unsigned long long>>* userList)
+{
+    users = userList ;
+}
+void DialogSec::onUserUpdated()
+{
+    emit userUpdated();
+    makenewaccount->close() ;
+    show() ;
+}
+void DialogSec::on_pushBGoTo_clicked()
+{
+    hide() ;
+    managecard = new manageCard(this) ;
+    managecard->getUsers(users);
+    for(user<unsigned long long> User : *users)
+    {
+        if(User.userName == username)
+        {
+            managecard->getUser(User);
+            break ;
+        }
+    }
+    managecard->show();
+}
+/.///////////////////////////////////////////
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+#include "cardtocard.h"
+
+#include <QMessageBox>
+#include <QList>
+#include "userfile.h"
+#include "dialogsec.h"
+#include "signinpage.h"
+#include "file_functions.h"
+
+
+using namespace std ;
+
+MainWindow::MainWindow(QWidget *parent) :
+    QMainWindow(parent),
+    ui(new Ui::MainWindow)
+{
+    ui->setupUi(this);
+    readUsers();
+    readAccounts();
+
+}
+MainWindow::~MainWindow()
+{
+    delete ui;
+}
+void MainWindow::on_pushButton_clicked()
+{
+    QString userName = ui->lineEdit_userName->text();
+    QString passWord = ui->lineEdit_passWord->text();
+
+    if(validUserPass(userName,passWord))
+    {
+        goToMainPage();
+        dialogSec->getUsername(userName) ;
+        dialogSec->setUsers(&users) ;
+    }
+    else
+        QMessageBox::warning(this,"login failed","userName or password is worng") ;
+}
+void MainWindow::readUsers()
+{
+    file_functions::readUsersFromFile("users.txt",users);
+}
+void MainWindow::readAccounts()
+{
+    file_functions::readAccountsFromFile("accounts.txt",users);
+}
+bool MainWindow::validUserPass(const QString &userName,const QString &passWord)
+{
+    for(const user<unsigned long long> &User : users)
+    {
+        if(User.userName == userName && User.password == passWord)
+            return true ;
+    }
+    return false ;
+}
+void MainWindow::goToMainPage()
+{
+    hide() ;
+    dialogSec->setUsers(&users);
+    dialogSec = new DialogSec(this) ;
+    dialogSec->show();
+}
+void MainWindow::goToSignInPage()
+{
+    hide() ;
+    signInPage = new signinPage(this) ;
+    signInPage->setUsers(&users);
+    signInPage->show() ;
+    connect(signInPage,&signinPage::userAdded,this,&MainWindow::updateUserList) ;
+
+}
+void MainWindow::on_pushButton_2_clicked()
+{
+    goToSignInPage();
+}
+void MainWindow::updateUserList(user<unsigned long long> User)
+{
+    users.append(User);
+    signInPage->close() ;
+    this->show() ;
+}
+/////////////////////////////////////////////
+#include "makenewaccount.h"
+#include "ui_makenewaccount.h"
+#include "userfile.h"
+#include "file_functions.h"
+#include <string>
+#include <QString>
+#include <QTime>
+#include <QDate>
+#include <QMessageBox>
+makeNewAccount::makeNewAccount(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::makeNewAccount)
+{
+    ui->setupUi(this);
+
+}
+
+makeNewAccount::~makeNewAccount()
+{
+    delete ui;
+}
+void makeNewAccount::getUser(user<unsigned long long> *userCpy)
+{
+    User = userCpy;
+}
+void makeNewAccount::setUsers(QList<user<unsigned long long> > *userList)
+{
+    users = userList ;
+}
+void makeNewAccount::on_radioButton_saving_pressed()
+{
+    bankAccount<unsigned long long> newAccount ;
+    newAccount.type =  "saving"  ;
+
+    make_Shaba(newAccount);
+    make_account_num(newAccount);
+    make_Card_Num(newAccount);
+    make_cvv2(newAccount);
+    make_Date(newAccount);
+    make_4DgtPass(newAccount);
+    make_password(newAccount);
+
+    QMessageBox::StandardButton addOrNot ;
+    addOrNot = QMessageBox::question(this,"adding the least amount of inventory" ,"Do you want to add 50 tomans to your inventory ?",QMessageBox::Yes|QMessageBox::No) ;
+    if(addOrNot == QMessageBox::Yes)
+    {
+        newAccount.inventory = 50 ;
+    }
+    else
+        newAccount.inventory = 0 ;
+
+   User->bankAccounts.append(newAccount);
+   file_functions::writeAccountToFile("accounts.txt",newAccount,User->userName) ;
+   emit userUpadted();
+}
+void makeNewAccount::on_radioButton_current_pressed()
+{
+    bankAccount<unsigned long long> newAccount ;
+    newAccount.type = "current" ;
+
+    make_Shaba(newAccount);
+    make_account_num(newAccount);
+    make_Card_Num(newAccount);
+    make_cvv2(newAccount);
+    make_Date(newAccount);
+    make_4DgtPass(newAccount);
+    make_password(newAccount);
+
+    QMessageBox::StandardButton addOrNot ;
+    addOrNot = QMessageBox::question(this,"adding the least amount of inventory" ,"Do you want to add 50 tomans to your inventory ?",QMessageBox::Yes|QMessageBox::No) ;
+    if(addOrNot == QMessageBox::Yes)
+    {
+        newAccount.inventory = 50 ;
+    }
+    else
+        newAccount.inventory = 0 ;
+
+    User->bankAccounts.append(newAccount);
+    file_functions::writeAccountToFile("accounts.txt",newAccount,User->userName) ;
+    emit userUpadted();
+}
+
+void makeNewAccount::on_radioButton_loan_pressed()
+{
+    bankAccount<unsigned long long> newAccount ;
+    newAccount.type = "loaning" ;
+    make_Shaba(newAccount);
+    make_account_num(newAccount);
+    make_Card_Num(newAccount);
+    make_cvv2(newAccount);
+    make_Date(newAccount);
+    make_4DgtPass(newAccount);
+    make_password(newAccount);
+
+    QMessageBox::StandardButton addOrNot ;
+    addOrNot = QMessageBox::question(this,"adding the least amount of inventory" ,"Do you want to add 50 tomans to your inventory ?",QMessageBox::Yes|QMessageBox::No) ;
+    if(addOrNot == QMessageBox::Yes)
+    {
+        newAccount.inventory = 50 ;
+    }
+    else
+        newAccount.inventory = 0 ;
+
+    User->bankAccounts.append(newAccount);
+    file_functions::writeAccountToFile("accounts.txt",newAccount,User->userName) ;
+    emit userUpadted();
+}
+void makeNewAccount::make_Card_Num(bankAccount<unsigned long long>& newAccount)
+{
+    for(int i = 0 ; i < 16 ; i ++)
+    {
+        int num = rand() % 10 ;
+        newAccount.cardNumber.push_back(QString::number(num));
+    }
+}
+void makeNewAccount::make_Shaba(bankAccount<unsigned long long>& newAccount )
+{
+    newAccount.shaba.push_back("IR");
+
+    for(int i = 0 ; i < 3 ; i ++)
+    {
+        int num = rand() % 10 ;
+        newAccount.shaba.push_back(QString::number(num));
+    }
+    newAccount.shaba.push_back("70001000");
+    for(int i = 0 ; i < 13 ; i ++)
+    {
+        int num = rand() % 10 ;
+        newAccount.shaba.push_back(QString::number(num));
+    }
+}
+void makeNewAccount::make_account_num(bankAccount<unsigned long long>& newAccount)
+{
+    for(int i = 8 ; i < 26 ; i ++)
+    {
+
+        newAccount.accountNum.push_back(newAccount.shaba.at(i));
+    }
+
+}
+void makeNewAccount::make_cvv2(bankAccount<unsigned long long>& newAccount)
+{
+    for(int i = 0 ; i < 3 ; i++)
+    {
+        int num = rand() % 10 ;
+        newAccount.cvv2.push_back(QString::number(num));
+    }
+}
+void makeNewAccount::make_Date(bankAccount<unsigned long long>& newAccount)
+{
+    QDate currentDate = QDate::currentDate() ;
+    QDate futureDate = currentDate.addYears(3) ;
+    newAccount.Date = futureDate.toString("yyyy-MM-dd") ;
+}
+void makeNewAccount::make_4DgtPass(bankAccount<unsigned long long>& newAccount)
+{
+    for(int i = 0 ; i < 4 ; i ++)
+    {
+        int num = rand()%10 ;
+        newAccount.pass4Dgt.push_back(QString::number(num));
+    }
+}
+void makeNewAccount::make_password(bankAccount<unsigned long long>& newAccount)
+{
+    for(int i = 0 ; i < 4 ; i ++)
+    {
+        int num = rand()%10 ;
+        newAccount.passWordSt.push_back(QString::number(num));
+    }
+}
+.///////////////////////////////////////////////
+#include "managecard.h"
+#include "ui_managecard.h"
+#include "userfile.h"
+
+manageCard::manageCard(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::manageCard)
+{
+    ui->setupUi(this);
+}
+
+manageCard::~manageCard()
+{
+    delete ui;
+}
+
+void manageCard::on_pushB_Card_to_Card_clicked()
+{
+    hide() ;
+    cardtocard = new cardTocard(this) ;
+    cardtocard->getUser(User);
+    cardtocard->getUsers(users);
+    cardtocard->show();
+}
+void manageCard::getUsers(QList<user<unsigned long long>>* userList)
+{
+    users = userList ;
+}
+void manageCard::getUser(user<unsigned long long> UserInLogin)
+{
+    User = UserInLogin ;
+}
+//////////////////////////////////////////////////////
+#include "signinpage.h"
+#include "ui_signinpage.h"
+#include "file_functions.h"
+
+signinPage::signinPage(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::signinPage)
+{
+    ui->setupUi(this);
+
+}
+
+signinPage::~signinPage()
+{
+    delete ui;
+}
+void signinPage::setUsers(QList<user<unsigned long long>>* userList)
+{
+    users = userList ;
+}
+
+void signinPage::on_pushButton_clicked()
+{
+    user<unsigned long long> User ;
+    User.userName = ui->lineEdit_username->text() ;
+    User.password = ui->lineEdit_pass->text() ;
+    User.name = ui->lineEdit_name->text() ;
+    User.lastName = ui->lineEdit_lastName->text() ;
+    User.ID = ui->lineEdit_ID->text() ;
+    users->append(User);
+    file_functions::writeUserToFile("users.txt" ,User) ;
+    emit userAdded(User);
+    emit
+}

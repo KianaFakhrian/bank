@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/new/prefix1">
+        <file alias="&quot;background.jpg&quot;">adc801a3-cc54-461c-98ae-ca20ea175bf9.jfif</file>
+    </qresource>
+</RCC>
